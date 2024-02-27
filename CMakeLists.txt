@@ -94,6 +94,8 @@ enable_testing()
 include(CMakeDependentOption)
 include(PrettyPrintCMakeList)
 
+option(BUILD_PORTABLE "Build Ceres in a portable way." OFF)
+option(EIGEN3_INCLUDE_DIR "Path to Eigen3." "")
 option(MINIGLOG "Use a stripped down version of glog." OFF)
 option(GFLAGS "Enable Google Flags." ON)
 option(SUITESPARSE "Enable SuiteSparse." ON)
@@ -129,6 +131,12 @@ option(PROVIDE_UNINSTALL_TARGET "Add a custom target to ease removal of installe
 set(SANITIZERS "" CACHE STRING "Semicolon-separated list of sanitizers to use (e.g address, memory, thread)")
 include(EnableSanitizer)
 enable_sanitizer(${SANITIZERS})
+
+if (BUILD_PORTABLE)
+  message("-- Building Ceres in a portable way. Enabling Miniglog.")
+  set(MINIGLOG ON)
+endif()
+
 if (ANDROID)
   option(ANDROID_STRIP_DEBUG_SYMBOLS "Strip debug symbols from Android builds (reduces file sizes)" ON)
 endif()
@@ -161,27 +169,39 @@ unset(CERES_COMPILE_OPTIONS)
 
 # Eigen.
 # Eigen delivers Eigen3Config.cmake since v3.3.3
-find_package(Eigen3 3.3 REQUIRED)
-if (Eigen3_FOUND)
-  message("-- Found Eigen version ${Eigen3_VERSION}: ${Eigen3_DIR}")
-  if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*)" AND
-      Eigen3_VERSION VERSION_LESS 3.3.4)
-    # As per issue #289: https://github.com/ceres-solver/ceres-solver/issues/289
-    # the bundle_adjustment_test will fail for Eigen < 3.3.4 on aarch64.
-    message(FATAL_ERROR "-- Ceres requires Eigen version >= 3.3.4 on aarch64. "
-      "Detected version of Eigen is: ${Eigen3_VERSION}.")
-  endif()
+if (NOT BUILD_PORTABLE)
+  find_package(Eigen3 3.3 REQUIRED)
+  if (Eigen3_FOUND)
+    message("-- Found Eigen version ${Eigen3_VERSION}: ${Eigen3_DIR}")
+    if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*)" AND
+        Eigen3_VERSION VERSION_LESS 3.3.4)
+      # As per issue #289: https://github.com/ceres-solver/ceres-solver/issues/289
+      # the bundle_adjustment_test will fail for Eigen < 3.3.4 on aarch64.
+      message(FATAL_ERROR "-- Ceres requires Eigen version >= 3.3.4 on aarch64. "
+        "Detected version of Eigen is: ${Eigen3_VERSION}.")
+    endif()
+  endif (Eigen3_FOUND)
+else ()
+  # If the user has not specified a path to Eigen3, then we will use the
+  # version of Eigen3 that is included with Ceres.
+  if (NOT EIGEN3_INCLUDE_DIR)
+    message("-- Warning! Path to Eigen not specified.")
+  else ()
+    message("-- Using Eigen3 from: ${EIGEN3_INCLUDE_DIR}")
+    include_directories(${EIGEN3_INCLUDE_DIR})
+  endif ()
+endif ()
 
-  if (EIGENSPARSE)
-    message("-- Enabling use of Eigen as a sparse linear algebra library.")
-    list(APPEND CERES_COMPILE_OPTIONS CERES_USE_EIGEN_SPARSE)
-  else (EIGENSPARSE)
-    message("-- Disabling use of Eigen as a sparse linear algebra library.")
-    message("   This does not affect the covariance estimation algorithm ")
-    message("   which can still use the EIGEN_SPARSE_QR algorithm.")
-    add_definitions(-DEIGEN_MPL2_ONLY)
-  endif (EIGENSPARSE)
-endif (Eigen3_FOUND)
+# How it would work without find_package(Eigen3) ???
+if (EIGENSPARSE)
+  message("-- Enabling use of Eigen as a sparse linear algebra library.")
+  list(APPEND CERES_COMPILE_OPTIONS CERES_USE_EIGEN_SPARSE)
+else (EIGENSPARSE)
+  message("-- Disabling use of Eigen as a sparse linear algebra library.")
+  message("   This does not affect the covariance estimation algorithm ")
+  message("   which can still use the EIGEN_SPARSE_QR algorithm.")
+  add_definitions(-DEIGEN_MPL2_ONLY)
+endif (EIGENSPARSE)
 
 if (USE_CUDA)
   if (CMAKE_VERSION VERSION_LESS 3.17)
