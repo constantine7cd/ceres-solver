@@ -137,6 +137,8 @@ if (BUILD_PORTABLE)
   set(MINIGLOG ON)
 endif()
 
+message("-- Miniglog: ${MINIGLOG}, Portable: ${BUILD_PORTABLE}, Eigen path: ${EIGEN3_INCLUDE_DIR}")
+
 if (ANDROID)
   option(ANDROID_STRIP_DEBUG_SYMBOLS "Strip debug symbols from Android builds (reduces file sizes)" ON)
 endif()
