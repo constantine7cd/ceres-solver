@@ -190,7 +190,7 @@ else ()
     message("-- Warning! Path to Eigen not specified.")
   else ()
     message("-- Using Eigen3 from: ${EIGEN3_INCLUDE_DIR}")
-    include_directories(${EIGEN3_INCLUDE_DIR})
+    include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
   endif ()
 endif ()
 
